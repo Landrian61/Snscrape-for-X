@@ -206,7 +206,7 @@ class Scraper:
 	def entity(self):
 		return self._get_entity()
 
-	def _request(self, method, url, params = None, data = None, headers = None, timeout = 10, responseOkCallback = None, allowRedirects = True, proxies = None):
+	def _request(self, method, url, params = None, data = None, json = None, headers = None, timeout = 10, responseOkCallback = None, allowRedirects = True, proxies = None):
 		if not headers:
 			headers = {}
 		if 'User-Agent' not in headers:
@@ -215,12 +215,14 @@ class Scraper:
 		errors = []
 		for attempt in range(self._retries + 1):
 			# The request is newly prepared on each retry because of potential cookie updates.
-			req = self._session.prepare_request(requests.Request(method, url, params = params, data = data, headers = headers))
+			req = self._session.prepare_request(requests.Request(method, url, params = params, data = data, json = json, headers = headers))
 			environmentSettings = self._session.merge_environment_settings(req.url, proxies, None, None, None)
 			_logger.info(f'Retrieving {req.url}')
 			_logger.debug(f'... with headers: {headers!r}')
 			if data:
 				_logger.debug(f'... with data: {data!r}')
+			if json:
+				_logger.debug(f'... with json: {json!r}')
 			if environmentSettings:
 				_logger.debug(f'... with environmentSettings: {environmentSettings!r}')
 			try:
