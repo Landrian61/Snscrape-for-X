@@ -35,8 +35,8 @@ __all__ = [
 	'UnifiedCardSwipeableMediaComponentObject',
 	'UnifiedCardSwipeableMediaMedium',
 	'UnifiedCardAppStoreComponentObject',
-	'UnifiedCardTwitterListDetailsComponentObject',
-	'UnifiedCardTwitterCommunityDetailsComponentObject',
+	'UnifiedCardxListDetailsComponentObject',
+	'UnifiedCardxCommunityDetailsComponentObject',
 	'UnifiedCardDestination',
 	'UnifiedCardApp',
 	'UnifiedCardSwipeableLayoutSlide',
@@ -53,18 +53,18 @@ __all__ = [
 	'Community',
 	'Trend',
 	'GuestTokenManager',
-	'TwitterSearchScraperMode',
-	'TwitterSearchScraper',
-	'TwitterUserScraper',
-	'TwitterProfileScraper',
-	'TwitterHashtagScraper',
-	'TwitterCashtagScraper',
-	'TwitterTweetScraperMode',
-	'TwitterTweetScraper',
-	'TwitterListPostsScraper',
-	'TwitterCommunityScraper',
-	'TwitterTrendsScraper',
-	'TwitterUsersScraper',
+	'xSearchScraperMode',
+	'xSearchScraper',
+	'xUserScraper',
+	'xProfileScraper',
+	'xHashtagScraper',
+	'xCashtagScraper',
+	'xTweetScraperMode',
+	'xTweetScraper',
+	'xListPostsScraper',
+	'xCommunityScraper',
+	'xTrendsScraper',
+	'xUsersScraper',
 ]
 
 
@@ -83,6 +83,8 @@ import random
 import logging
 import os
 import re
+import hmac
+import hashlib
 import requests.adapters
 import snscrape.base
 import snscrape.utils
@@ -95,10 +97,11 @@ import warnings
 
 
 _logger = logging.getLogger(__name__)
-_API_AUTHORIZATION_HEADER = 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA'
+_API_AUTHORIZATION_HEADER = 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA'
 _globalGuestTokenManager = None
 _GUEST_TOKEN_VALIDITY = 10800
 _CIPHERS_CHROME = 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA:AES256-SHA'
+
 
 @dataclasses.dataclass
 class Tweet(snscrape.base.Item):
@@ -306,7 +309,7 @@ class Event:
 
 	@property
 	def url(self):
-		return f'https://twitter.com/i/events/{self.id}'
+		return f'https://x.com/i/events/{self.id}'
 
 
 @dataclasses.dataclass
@@ -426,7 +429,7 @@ class UnifiedCardAppStoreComponentObject(UnifiedCardComponentObject):
 
 
 @dataclasses.dataclass
-class UnifiedCardTwitterListDetailsComponentObject(UnifiedCardComponentObject):
+class UnifiedCardxListDetailsComponentObject(UnifiedCardComponentObject):
 	name: str
 	memberCount: int
 	subscriberCount: int
@@ -435,7 +438,7 @@ class UnifiedCardTwitterListDetailsComponentObject(UnifiedCardComponentObject):
 
 
 @dataclasses.dataclass
-class UnifiedCardTwitterCommunityDetailsComponentObject(UnifiedCardComponentObject):
+class UnifiedCardxCommunityDetailsComponentObject(UnifiedCardComponentObject):
 	name: str
 	theme: str
 	membersCount: int
@@ -519,12 +522,12 @@ class ConversationControlPolicy(enum.Enum):
 
 @dataclasses.dataclass
 class TweetRef(snscrape.base.Item):
-	'''A reference to a tweet for which no proper Tweet object could be produced from the data returned by Twitter'''
+	'''A reference to a tweet for which no proper Tweet object could be produced from the data returned by x'''
 
 	id: int
 
 	def __str__(self):
-		return f'https://twitter.com/i/web/status/{self.id}'
+		return f'https://x.com/i/web/status/{self.id}'
 
 
 @dataclasses.dataclass
@@ -536,7 +539,7 @@ class Tombstone(snscrape.base.Item):
 	textLinks: typing.Optional[typing.List[TextLink]] = None
 
 	def __str__(self):
-		return f'https://twitter.com/i/web/status/{self.id}'
+		return f'https://x.com/i/web/status/{self.id}'
 
 
 @dataclasses.dataclass
@@ -574,7 +577,7 @@ class User(snscrape.base.Item):
 
 	@property
 	def url(self):
-		return f'https://twitter.com/{self.username}'
+		return f'https://x.com/{self.username}'
 
 	def __str__(self):
 		return self.url
@@ -595,7 +598,7 @@ class UserRef:
 	textLinks: typing.Optional[typing.List[TextLink]] = None
 
 	def __str__(self):
-		return f'https://twitter.com/i/user/{self.id}'
+		return f'https://x.com/i/user/{self.id}'
 
 
 class ProfileImageShape(enum.Enum):
@@ -604,7 +607,7 @@ class ProfileImageShape(enum.Enum):
 	SQUARE = 'square'
 
 	@classmethod
-	def _from_twitter_string(cls, s):
+	def _from_x_string(cls, s):
 		if s == 'Circle':
 			return cls.CIRCLE
 		elif s == 'Hexagon':
@@ -638,7 +641,7 @@ class Trend(snscrape.base.Item):
 	metaDescription: typing.Optional[str] = None
 
 	def __str__(self):
-		return f'https://twitter.com/search?q={urllib.parse.quote(self.name)}'
+		return f'https://x.com/search?q={urllib.parse.quote(self.name)}'
 
 
 class _ScrollDirection(enum.Enum):
@@ -685,7 +688,7 @@ class _CLIGuestTokenManager(GuestTokenManager):
 			# This ensures that the XDG_CACHE_HOME is created with the right permissions.
 			os.makedirs(os.path.dirname(dir), mode = 0o700, exist_ok = True)
 			os.mkdir(dir, mode = 0o700)
-		self._file = os.path.join(dir, 'cli-twitter-guest-token.json')
+		self._file = os.path.join(dir, 'cli-x-guest-token.json')
 		self._lockFile = f'{self._file}.lock'
 		self._lock = filelock.FileLock(self._lockFile)
 
@@ -781,47 +784,296 @@ class _CLIGuestTokenManager(GuestTokenManager):
 		self._blockedUntil = 0
 
 
-class _TwitterTLSAdapter(snscrape.base._HTTPSAdapter):
+class _xTLSAdapter(snscrape.base._HTTPSAdapter):
 	def init_poolmanager(self, *args, **kwargs):
 		#FIXME: When urllib3 2.0.0 is out and can be required, this should use urllib3.util.create_urllib3_context instead of the private, undocumented ssl_ module.
 		kwargs['ssl_context'] = urllib3.util.ssl_.create_urllib3_context(ciphers = _CIPHERS_CHROME)
 		super().init_poolmanager(*args, **kwargs)
 
 
-class _TwitterAPIType(enum.Enum):
+class _xAPIType(enum.Enum):
 	V2 = 0  # Introduced with the redesign
 	GRAPHQL = 1
 
 
-class _TwitterAPIScraper(snscrape.base.Scraper):
+class OAuth1aAuthenticator:
+    def __init__(self, consumer_key, consumer_secret, access_token, access_token_secret):
+        self.consumer_key = consumer_key
+        self.consumer_secret = consumer_secret
+        self.access_token = access_token
+        self.access_token_secret = access_token_secret
 
-	_GRAPHQL_ENDPOINTS = {
-		'SearchTimeline': 'UGi7tjRPr-d_P4LOg9jzxA',
-		'UserByScreenName': '9nnDM-yum8Te--T2REfgkg',
-		'UserTweets': 'H8OOoI-5ZE4NxgRr8lfyWg',
-		'TweetDetail': 'miKSMGb2R1SewIJv2-ablQ',
-		'UserByRestId': '1YAM811Q8Ry4XyPpJclURQ',
-		'CommunitiesFetchOne': 'bC3Saf4niY6YuzJWV2oUGg',
-	}
+		 # Store as dictionary as well for existing methods
+        self._oauth_credentials = {
+            'consumer_key': consumer_key,
+            'consumer_secret': consumer_secret,
+            'access_token': access_token,
+            'access_token_secret': access_token_secret
+        }
+    
+    def _generate_nonce(self, length=32):
+        """Generate a random nonce string"""
+        return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
+    
+    def _percent_encode(self, s):
+        """Percent encode string per OAuth spec"""
+        # This is different from urllib's standard encoding
+        return urllib.parse.quote(s, safe='').replace('%7E', '~')
+    
+    def _get_signature_base_string(self, method, url, params):
+        """Create the signature base string"""
+        # Sort parameters and encode them
+        encoded_params = []
+        for k, v in sorted(params.items()):
+            encoded_params.append(f"{self._percent_encode(k)}={self._percent_encode(str(v))}")
+        
+        param_string = '&'.join(encoded_params)
+        
+        # Create signature base string
+        base_string_parts = [
+            method.upper(),
+            self._percent_encode(url),
+            self._percent_encode(param_string)
+        ]
+        
+        return '&'.join(base_string_parts)
+    
+    def _get_signing_key(self):
+        """Generate the signing key"""
+        consumer_secret = self._oauth_credentials.get('consumer_secret', '')
+        token_secret = self._oauth_credentials.get('access_token_secret', '')
 
-	def __init__(self, baseUrl, *, guestTokenManager = None, maxEmptyPages = 0, **kwargs):
-		super().__init__(**kwargs)
-		self._baseUrl = baseUrl
-		if guestTokenManager is None:
-			global _globalGuestTokenManager
-			if _globalGuestTokenManager is None:
-				_globalGuestTokenManager = GuestTokenManager()
-			guestTokenManager = _globalGuestTokenManager
-		self._guestTokenManager = guestTokenManager
-		self._maxEmptyPages = maxEmptyPages
-		self._apiHeaders = {
-			'Authorization': _API_AUTHORIZATION_HEADER,
-			'Referer': self._baseUrl,
-			'Accept-Language': 'en-US,en;q=0.5',
-		}
-		adapter = _TwitterTLSAdapter()
-		self._session.mount('https://twitter.com', adapter)
-		self._session.mount('https://api.twitter.com', adapter)
+		 # Format is consumer_secret&token_secret
+        return f"{consumer_secret}&{token_secret}"
+
+    def _get_signature(self, base_string, signing_key):
+        """Generate HMAC-SHA1 signature"""
+        key_bytes = signing_key.encode('ascii')
+        message_bytes = base_string.encode('ascii')
+        
+        # Create HMAC-SHA1 signature
+        hashed = hmac.new(key_bytes, message_bytes, hashlib.sha1)
+        return base64.b64encode(hashed.digest()).decode('ascii')
+    
+    def get_auth_header(self, method, url, params=None):
+        """Generate OAuth 1.0a header for a request"""
+        if params is None:
+            params = {}
+        
+        # Current timestamp
+        timestamp = str(int(time.time()))
+        
+        # OAuth parameters
+        oauth_params = {
+            'oauth_consumer_key': self.consumer_key,
+            'oauth_nonce': self._generate_nonce(),
+            'oauth_signature_method': 'HMAC-SHA1',
+            'oauth_timestamp': timestamp,
+            'oauth_token': self.access_token,
+            'oauth_version': '1.0'
+        }
+        
+        # Combine all parameters for signature
+        signature_params = params.copy()
+        signature_params.update(oauth_params)
+        
+        # Get the signature base string and signing key
+        base_string = self._get_signature_base_string(method, url, signature_params)
+        signing_key = self._get_signing_key()
+        
+        # Generate signature and add to oauth params
+        oauth_params['oauth_signature'] = self._get_signature(base_string, signing_key)
+        
+        # Build OAuth header
+        header_parts = [f'{self._percent_encode(k)}="{self._percent_encode(v)}"' for k, v in oauth_params.items()]
+        return 'OAuth ' + ', '.join(header_parts)
+
+class AuthTokenManager:
+    def __init__(self, oauth_credentials=None, bearer_token=None):
+        self.oauth_credentials = oauth_credentials
+        self.bearer_token = bearer_token
+        self.tokens = {}
+        self.setTime = time.time()
+        self.blockUntil = 0
+        
+        # Initialize OAuth authenticator if credentials provided
+        self.oauth_authenticator = None
+        if oauth_credentials and all(k in oauth_credentials for k in ('consumer_key', 'consumer_secret', 'access_token', 'access_token_secret')):
+            self.oauth_authenticator = OAuth1aAuthenticator(
+                oauth_credentials['consumer_key'],
+                oauth_credentials['consumer_secret'],
+                oauth_credentials['access_token'],
+                oauth_credentials['access_token_secret']
+            )
+            
+        # If bearer token provided, initialize with it
+        if bearer_token:
+            self.tokens['bearer_token'] = bearer_token
+    
+    def set_guest_token(self, token):
+        """Set guest token"""
+        self.tokens['guest_token'] = token
+        self.setTime = time.time()
+    
+    def set_csrf_token(self, token):
+        """Set CSRF token"""
+        self.tokens['csrf_token'] = token
+        self.setTime = time.time()
+    
+    def set_cookies(self, cookies):
+        """Store cookies"""
+        self.tokens['cookies'] = cookies
+        self.setTime = time.time()
+    
+    def has_valid_tokens(self):
+        """Check if we have valid auth tokens"""
+        if time.time() < self.blockUntil:
+            return False
+            
+        # Check for OAuth authenticator, bearer token or guest token
+        return (self.oauth_authenticator is not None or
+                ('bearer_token' in self.tokens and self.tokens['bearer_token']) or 
+                ('guest_token' in self.tokens and self.tokens['guest_token']))
+    
+    def get_auth_header(self, method, url, params=None):
+        """Get appropriate authorization header"""
+        # Try OAuth 1.0a first (user context)
+        if self.oauth_authenticator:
+            return self.oauth_authenticator.get_auth_header(method, url, params)
+        
+        # Fall back to bearer token (app-only)
+        if 'bearer_token' in self.tokens:
+            return f"Bearer {self.tokens['bearer_token']}"
+        
+        return None
+    
+    def get_tokens(self):
+        """Get the current set of tokens"""
+        return self.tokens
+    
+    def reset(self, blockUntil=None):
+        """Reset tokens"""
+        # Keep bearer token and OAuth credentials but clear other tokens
+        bearer = self.tokens.get('bearer_token')
+        self.tokens = {}
+        if bearer:
+            self.tokens['bearer_token'] = bearer
+            
+        if blockUntil is not None:
+            self.blockUntil = blockUntil	
+
+class _xAPIScraper(snscrape.base.Scraper):
+	def __init__(self, baseUrl, *, authTokenManager = None, guestTokenManager = None, maxEmptyPages = 0, **kwargs):
+			super().__init__(**kwargs)
+			self._baseUrl = baseUrl
+			
+			# Auth token handling
+			self._authTokenManager = authTokenManager
+			
+			# Keep guest token handling for fallback
+			if guestTokenManager is None:
+				global _globalGuestTokenManager
+				if _globalGuestTokenManager is None:
+					_globalGuestTokenManager = GuestTokenManager()
+				guestTokenManager = _globalGuestTokenManager
+			self._guestTokenManager = guestTokenManager
+			
+			self._maxEmptyPages = maxEmptyPages
+			self._apiHeaders = {
+				'Referer': 'https://twitter.com/',  # Note: Use twitter.com instead of x.com
+				'Accept-Language': 'en-US,en;q=0.9',
+				'Content-Type': 'application/json',
+				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+				'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+				'sec-ch-ua': '"Google Chrome";v="121", "Not A(Brand";v="99", "Chromium";v="121"',
+				'sec-ch-ua-mobile': '?0',
+				'sec-ch-ua-platform': '"Windows"',
+				'sec-fetch-dest': 'document',
+				'sec-fetch-mode': 'navigate',
+				'sec-fetch-site': 'none',
+				'sec-fetch-user': '?1',
+				'upgrade-insecure-requests': '1',
+				'cookie': '',
+			}
+			adapter = _xTLSAdapter()
+			self._session.mount('https://x.com', adapter)
+			self._session.mount('https://api.x.com', adapter)
+			self._session.mount('https://twitter.com', adapter)
+			self._session.mount('https://api.twitter.com', adapter)
+			
+			# Try to initialize tokens
+			if self._authTokenManager:
+				self._initialize_auth()
+    
+	def _initialize_auth(self):
+		"""Initialize authentication if token manager is provided"""
+		tokens = self._authTokenManager.get_tokens()
+
+		# Initialize CSRF token if needed
+		if 'csrf_token' not in tokens:
+			# Try to get CSRF token from X's website
+			try:
+				# Remove allow_redirects parameter, use default behavior
+				r = self._get('https://x.com')
+				# Find CSRF token in cookies
+				if 'ct0' in self._session.cookies:
+					self._authTokenManager.set_csrf_token(self._session.cookies['ct0'])
+				# Store cookies
+				cookie_dict = {k: v for k, v in self._session.cookies.items()}
+				if cookie_dict:
+					self._authTokenManager.set_cookies(cookie_dict)
+			except Exception as e:
+				_logger.warning(f"Error initializing CSRF token: {e}")
+
+	def _get_auth_headers(self, method, url, params=None):
+		"""Get authentication headers for a request"""
+		headers = {}
+		
+		# Get auth header
+		if self._authTokenManager:
+			auth_header = self._authTokenManager.get_auth_header(method, url, params)
+			if auth_header:
+				headers['Authorization'] = auth_header
+		
+		# Add CSRF token if available
+		tokens = self._authTokenManager.get_tokens() if self._authTokenManager else {}
+		if 'csrf_token' in tokens:
+			headers['x-csrf-token'] = tokens['csrf_token']
+		
+		# Add guest token if available
+		if 'guest_token' in tokens:
+			headers['x-guest-token'] = tokens['guest_token']
+		
+		return headers
+			
+	def _get(self, url, params=None, headers=None, responseOkCallback=None, **kwargs):
+		"""Override _get to add OAuth headers"""
+		all_headers = self._apiHeaders.copy()
+		
+		# Add auth headers
+		auth_headers = self._get_auth_headers('GET', url, params)
+		all_headers.update(auth_headers)
+		
+		# Add any custom headers
+		if headers:
+			all_headers.update(headers)
+		
+		return super()._get(url, params=params, headers=all_headers, responseOkCallback=responseOkCallback, **kwargs)
+
+	def _post(self, url, data=None, json=None, headers=None, responseOkCallback=None, **kwargs):
+		"""Override _post to add OAuth headers"""
+		all_headers = self._apiHeaders.copy()
+		
+		# Add auth headers
+		params = json if json is not None else {}
+		auth_headers = self._get_auth_headers('POST', url, params)
+		all_headers.update(auth_headers)
+		
+		# Add any custom headers
+		if headers:
+			all_headers.update(headers)
+		
+		return super()._post(url, data=data, json=json, headers=all_headers, responseOkCallback=responseOkCallback, **kwargs)
 
 	def _check_guest_token_response(self, r):
 		if r.status_code != 200:
@@ -831,66 +1083,35 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 	def _ensure_guest_token(self, url = None):
 		if self._guestTokenManager.token is None:
 			_logger.info('Retrieving guest token')
-			# Try getting token from HTML first
 			r = self._get(self._baseUrl if url is None else url, responseOkCallback = self._check_guest_token_response)
-			
-			# Look for token in newer script-based token assignment
-			if (match := re.search(r'gt=(\d+)', r.text)):
-				_logger.debug('Found guest token in HTML script')
+			if (match := re.search(r'document\.cookie = decodeURIComponent\("gt=(\d+); Max-Age=10800; Domain=\.x\.com; Path=/; Secure"\);', r.text)):
+				_logger.debug('Found guest token in HTML')
 				self._guestTokenManager.token = match.group(1)
-			# Check cookies
-			elif 'gt' in r.cookies:
+			if 'gt' in r.cookies:
 				_logger.debug('Found guest token in cookies')
 				self._guestTokenManager.token = r.cookies['gt']
-			# Fallback to API request
 			if not self._guestTokenManager.token:
-				_logger.debug('No guest token found, requesting from API')
-				r = self._post(
-					'https://api.twitter.com/1.1/guest/activate.json',
-					data = '',
-					headers = {
-						**self._apiHeaders,
-						'Content-Type': 'application/json',
-					},
-					responseOkCallback = self._check_guest_token_response
-				)
+				_logger.debug('No guest token in response')
+				_logger.info('Retrieving guest token via API')
+				r = self._post('https://api.twitter.com/1.1/guest/activate.json', data = b'', headers = self._apiHeaders, responseOkCallback = self._check_guest_token_response)
 				o = r.json()
 				if not o.get('guest_token'):
 					raise snscrape.base.ScraperException('Unable to retrieve guest token')
 				self._guestTokenManager.token = o['guest_token']
-				
-			if not self._guestTokenManager.token:
-				raise snscrape.base.ScraperException('Unable to retrieve guest token')
-				
+			assert self._guestTokenManager.token
 		_logger.debug(f'Using guest token {self._guestTokenManager.token}')
-		self._session.cookies.set(
-			'gt', 
-			self._guestTokenManager.token,
-			domain = '.twitter.com',
-			path = '/',
-			secure = True,
-			expires = self._guestTokenManager.setTime + _GUEST_TOKEN_VALIDITY
-		)
+		self._session.cookies.set('gt', self._guestTokenManager.token, domain = '.x.com', path = '/', secure = True, expires = self._guestTokenManager.setTime + _GUEST_TOKEN_VALIDITY)
 		self._apiHeaders['x-guest-token'] = self._guestTokenManager.token
 
 	def _unset_guest_token(self, blockUntil):
-		"""Safely remove guest token"""
 		self._guestTokenManager.reset(blockUntil = blockUntil)
-		# Safely remove cookies and headers
-		self._session.cookies.pop('gt', None)  # Use pop() to avoid KeyError
-		self._apiHeaders.pop('x-guest-token', None)
+		del self._session.cookies['gt']
+		del self._apiHeaders['x-guest-token']
 
 	def _check_api_response(self, r, apiType, instructionsPath):
 		if r.status_code in (403, 404, 429):
-			if r.status_code == 429:  # Rate limit
-				reset_time = int(r.headers.get('x-rate-limit-reset', 0))
-				current_time = int(time.time())
-				wait_time = max(reset_time - current_time, 60)  # At least 60s
-				
-				_logger.warning(f'Rate limited. Waiting {wait_time} seconds')
-				self._unset_guest_token(blockUntil = current_time + wait_time)
-				time.sleep(min(wait_time, 300))  # Cap at 5 minutes
-				return False, 'rate-limited'
+			if r.status_code == 429 and r.headers.get('x-rate-limit-remaining', '') == '0' and 'x-rate-limit-reset' in r.headers:
+				blockUntil = min(int(r.headers['x-rate-limit-reset']), int(time.time()) + 900)
 			else:
 				blockUntil = int(time.time()) + 300
 			self._unset_guest_token(blockUntil)
@@ -903,11 +1124,11 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 		try:
 			obj = r.json()
 		except json.JSONDecodeError as e:
-			return False, f'received invalid JSON from Twitter ({e})'
+			return False, f'received invalid JSON from x ({e})'
 		# Pass the already-parsed object outwards so it doesn't need to be decoded twice.
 		r._snscrapeObj = obj
-		if apiType is _TwitterAPIType.GRAPHQL and 'errors' in obj:
-			msg = 'Twitter responded with an error: ' + ', '.join(f'{e["name"]}: {e["message"]}' for e in obj['errors'])
+		if apiType is _xAPIType.GRAPHQL and 'errors' in obj:
+			msg = 'x responded with an error: ' + ', '.join(f'{e["name"]}: {e["message"]}' for e in obj['errors'])
 			instructions = obj
 			for k in instructionsPath:
 				instructions = instructions.get(k, {})
@@ -921,34 +1142,10 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 
 	def _get_api_data(self, endpoint, apiType, params, instructionsPath = None):
 		self._ensure_guest_token()
-		
-		# Add new required parameters
-		if apiType is _TwitterAPIType.GRAPHQL:
-			params['features'] = {
-				**params.get('features', {}),
-				'responsive_web_graphql_exclude_directive_enabled': True,
-				'verified_phone_label_enabled': False,
-				'responsive_web_graphql_timeline_navigation_enabled': True,
-				'responsive_web_graphql_skip_user_profile_image_extensions_enabled': False,
-				'c9s_tweet_anatomy_moderator_badge_enabled': True,
-				'freedom_of_speech_not_reach_fetch_enabled': True,
-				'standardized_nudges_misinfo': True,
-				'tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled': True,
-				'longform_notetweets_consumption_enabled': True,
-				'responsive_web_enhance_cards_enabled': False
-			}
-			
-			# Update variables with required fields
-			if 'variables' in params:
-				params['variables'].update({
-					'withSuperFollowsUserFields': True,
-					'withDownvotePerspective': False,
-					'withReactionsMetadata': False,
-					'withReactionsPerspective': False,
-					'withSuperFollowsTweetFields': True,
-					'withVoice': True,
-					'withV2Timeline': True
-				})
+		if apiType is _xAPIType.GRAPHQL:
+			params = urllib.parse.urlencode({k: json.dumps(v, separators = (',', ':')) for k, v in params.items()}, quote_via = urllib.parse.quote)
+		r = self._get(endpoint, params = params, headers = self._apiHeaders, responseOkCallback = functools.partial(self._check_api_response, apiType = apiType, instructionsPath = instructionsPath))
+		return r._snscrapeObj
 
 	def _iter_api_data(self, endpoint, apiType, params, paginationParams = None, cursor = None, direction = _ScrollDirection.BOTTOM, instructionsPath = None):
 		# Iterate over endpoint with params/paginationParams, optionally starting from a cursor
@@ -960,7 +1157,7 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 		# Logic for dual scrolling: direction is set to top, but if the bottom cursor is found, bottomCursorAndStop is set accordingly.
 		# Once the top pagination is exhausted, the bottomCursorAndStop is used and reset to None; it isn't set anymore after because the first entry condition will always be true for the bottom cursor.
 
-		assert apiType is _TwitterAPIType.GRAPHQL
+		assert apiType is _xAPIType.GRAPHQL
 		if cursor is None:
 			reqParams = params
 		else:
@@ -1018,7 +1215,7 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 			if bottomCursorAndStop is None and newBottomCursorAndStop is not None:
 				bottomCursorAndStop = newBottomCursorAndStop
 			if newCursor == cursor and entryCount == 0:
-				# Twitter sometimes returns the same cursor as requested and no results even though there are more results.
+				# x sometimes returns the same cursor as requested and no results even though there are more results.
 				# When this happens, retry the same cursor up to the retries setting.
 				emptyResponsesOnCursor += 1
 				if emptyResponsesOnCursor > self._retries:
@@ -1060,7 +1257,7 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 			entities = noteTweet['entity_set']
 		else:
 			if noteTweet:
-				_logger.warning(f'Twitter returned an empty note tweet in tweet {tweetId}; text and entities might be incomplete')
+				_logger.warning(f'x returned an empty note tweet in tweet {tweetId}; text and entities might be incomplete')
 			kwargs['rawContent'] = tweet['full_text']
 			entities = tweet['entities']
 		links = entities.get('urls')
@@ -1074,7 +1271,7 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 			                     tcourl = u['url'],
 			                     indices = tuple(u['indices']),
 			                   ) for u in links]
-		kwargs['url'] = f'https://twitter.com/{getattr(user, "username", "i/web")}/status/{tweetId}'
+		kwargs['url'] = f'https://x.com/{getattr(user, "username", "i/web")}/status/{tweetId}'
 		kwargs['replyCount'] = tweet['reply_count']
 		kwargs['retweetCount'] = tweet['retweet_count']
 		kwargs['likeCount'] = tweet['favorite_count']
@@ -1112,7 +1309,7 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 		if entities.get('user_mentions'):
 			kwargs['mentionedUsers'] = [User(username = u['screen_name'], id = u['id'] if 'id' in u else int(u['id_str']), displayname = u['name']) for u in entities['user_mentions']]
 
-		# https://developer.twitter.com/en/docs/tutorials/filtering-tweets-by-location
+		# https://developer.x.com/en/docs/tutorials/filtering-tweets-by-location
 		if tweet.get('coordinates'):
 			# coordinates root key (if present) presents coordinates in the form [LONGITUDE, LATITUDE]
 			if (coords := tweet['coordinates']['coordinates']) and len(coords) == 2:
@@ -1304,11 +1501,11 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 			else:
 				keyMap = {**keyMap, 'id': 'id', 'url': 'url', 'title': 'title', 'description': 'description', 'total_participants': 'totalParticipants', 'full_size_thumbnail_url': 'thumbnailUrl'}
 			kwargs = snscrape.utils.dict_map(bindingValues, keyMap)
-			if 'broadcaster_twitter_id' in bindingValues:
-				if int(bindingValues['broadcaster_twitter_id']) in userRefs:
-					kwargs['broadcaster'] = userRefs[int(bindingValues['broadcaster_twitter_id'])]
+			if 'broadcaster_x_id' in bindingValues:
+				if int(bindingValues['broadcaster_x_id']) in userRefs:
+					kwargs['broadcaster'] = userRefs[int(bindingValues['broadcaster_x_id'])]
 				else:
-					kwargs['broadcaster'] = User(id = int(bindingValues['broadcaster_twitter_id']), username = bindingValues['broadcaster_username'], displayname = bindingValues['broadcaster_display_name'])
+					kwargs['broadcaster'] = User(id = int(bindingValues['broadcaster_x_id']), username = bindingValues['broadcaster_username'], displayname = bindingValues['broadcaster_display_name'])
 			if 'siteUser' not in kwargs:
 				kwargs['siteUser'] = None
 			if cardName == '745291183405076480:broadcast':
@@ -1361,7 +1558,7 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 		elif cardName == '3691233323:audiospace':
 			return SpacesCard(**snscrape.utils.dict_map(bindingValues, {'card_url': 'url', 'id': 'id'}))
 		elif cardName == '2586390716:message_me':
-			# Note that the strings in Twitter's JS appear to have an incorrect mapping that then gets changed somewhere in the 1.8 MiB of JS!
+			# Note that the strings in x's JS appear to have an incorrect mapping that then gets changed somewhere in the 1.8 MiB of JS!
 			# cta_1, 3, and 4 should mean 'Message us', 'Send a private message', and 'Send me a private message', but the correct mapping is currently unknown.
 			ctas = {'message_me_card_cta_2': 'Send us a private message'}
 			if bindingValues['cta'] not in ctas:
@@ -1392,7 +1589,7 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 					_logger.warning(f'Unsupported unified_card type on tweet {tweetId}: {unifiedCardType!r}')
 					return
 				kwargs['type'] = unifiedCardType
-			elif set(c['type'] for c in o['component_objects'].values()) not in ({'media', 'twitter_list_details'}, {'media', 'community_details'}):
+			elif set(c['type'] for c in o['component_objects'].values()) not in ({'media', 'x_list_details'}, {'media', 'community_details'}):
 				_logger.warning(f'Unsupported unified_card type on tweet {tweetId}')
 				return
 
@@ -1413,8 +1610,8 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 					co = UnifiedCardSwipeableMediaComponentObject(media = media)
 				elif v['type'] == 'app_store_details':
 					co = UnifiedCardAppStoreComponentObject(appKey = v['data']['app_id'], destinationKey = v['data']['destination'])
-				elif v['type'] == 'twitter_list_details':
-					co = UnifiedCardTwitterListDetailsComponentObject(
+				elif v['type'] == 'x_list_details':
+					co = UnifiedCardxListDetailsComponentObject(
 						name = v['data']['name']['content'],
 						memberCount = v['data']['member_count'],
 						subscriberCount = v['data']['subscriber_count'],
@@ -1422,7 +1619,7 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 						destinationKey = v['data']['destination'],
 					)
 				elif v['type'] == 'community_details':
-					co = UnifiedCardTwitterCommunityDetailsComponentObject(
+					co = UnifiedCardxCommunityDetailsComponentObject(
 						name = v['data']['name']['content'],
 						theme = v['data']['theme'],
 						membersCount = v['data']['member_count'],
@@ -1597,7 +1794,7 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 			if tweet['quoted_status_id_str'] != tweet.get('retweeted_status_result', {}).get('result', {}).get('quoted_status_result', {}).get('result', {}).get('rest_id'):
 				kwargs['quotedTweet'] = TweetRef(id = int(tweet['quoted_status_id_str']))
 		if 'card' in result:
-			kwargs['card'] = self._make_card(result['card'], _TwitterAPIType.GRAPHQL, self._get_tweet_id(tweet))
+			kwargs['card'] = self._make_card(result['card'], _xAPIType.GRAPHQL, self._get_tweet_id(tweet))
 		if 'note_tweet' in result:
 			kwargs['noteTweet'] = result['note_tweet']['note_tweet_results']['result']
 		if 'views' in result and 'count' in result['views']:
@@ -1736,7 +1933,7 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 		if (labelO := results['result']['affiliates_highlighted_label'].get('label')):
 			kwargs['label'] = self._user_label_to_user_label(labelO)
 		if 'profile_image_shape' in results['result']:
-			kwargs['profileImageShape'] = ProfileImageShape._from_twitter_string(results['result']['profile_image_shape'])
+			kwargs['profileImageShape'] = ProfileImageShape._from_x_string(results['result']['profile_image_shape'])
 		return self._user_to_user(results['result']['legacy'], id_ = userId if userId is not None else int(results['result']['rest_id']), **kwargs)
 
 	@classmethod
@@ -1745,7 +1942,7 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 		return super()._cli_construct(argparseArgs, *args, **kwargs)
 
 
-class TwitterSearchScraperMode(enum.Enum):
+class xSearchScraperMode(enum.Enum):
 	LIVE = 'live'
 	TOP = 'top'
 	USER = 'user'
@@ -1759,39 +1956,37 @@ class TwitterSearchScraperMode(enum.Enum):
 		return cls.LIVE
 
 
-class TwitterSearchScraper(_TwitterAPIScraper):
-	name = 'twitter-search'
+class xSearchScraper(_xAPIScraper):
+	name = 'x-search'
 
-
-
-	def __init__(self, query, *, cursor = None, mode = TwitterSearchScraperMode.LIVE, top = None, maxEmptyPages = 20, **kwargs):
+	def __init__(self, query, *, cursor = None, mode = xSearchScraperMode.LIVE, top = None, maxEmptyPages = 20, **kwargs):
 		if not query.strip():
 			raise ValueError('empty query')
-		if mode not in tuple(TwitterSearchScraperMode):
-			raise ValueError('invalid mode, must be a TwitterSearchScraperMode')
+		if mode not in tuple(xSearchScraperMode):
+			raise ValueError('invalid mode, must be a xSearchScraperMode')
 		kwargs['maxEmptyPages'] = maxEmptyPages
-		super().__init__(baseUrl = 'https://twitter.com/search?' + urllib.parse.urlencode({'f': 'live', 'lang': 'en', 'q': query, 'src': 'spelling_expansion_revert_click'}), **kwargs)
+		super().__init__(baseUrl = 'https://x.com/search?' + urllib.parse.urlencode({'f': 'live', 'lang': 'en', 'q': query, 'src': 'spelling_expansion_revert_click'}), **kwargs)
 		self._query = query  # Note: may get replaced by subclasses when using user ID resolution
 		if cursor is not None:
 			warnings.warn('the `cursor` argument is deprecated', snscrape.base.DeprecatedFeatureWarning, stacklevel = 2)
 		self._cursor = cursor
 		if top is not None:
-			replacement = f'{__name__}.TwitterSearchScraperMode.' + ('TOP' if top else 'LIVE')
+			replacement = f'{__name__}.xSearchScraperMode.' + ('TOP' if top else 'LIVE')
 			warnings.warn(f'`top` argument is deprecated, use `mode = {replacement}` instead of `top = {bool(top)}`', snscrape.base.DeprecatedFeatureWarning, stacklevel = 2)
-			mode = TwitterSearchScraperMode.TOP if top else TwitterSearchScraperMode.LIVE
+			mode = xSearchScraperMode.TOP if top else xSearchScraperMode.LIVE
 		self._mode = mode
 
 	def get_items(self):
 		if not self._query.strip():
 			raise ValueError('empty query')
-		if self._mode is TwitterSearchScraperMode.USER:
+		if self._mode is xSearchScraperMode.USER:
 			raise snscrape.base.ScraperException('User searches currently unsupported')
 
 		paginationVariables = {
 			'rawQuery': self._query,
 			'count': 20,
 			'cursor': None,
-			'product': 'Latest' if self._mode is TwitterSearchScraperMode.LIVE else 'Top',
+			'product': 'Latest' if self._mode is xSearchScraperMode.LIVE else 'Top',
 			'withDownvotePerspective': False,
 			'withReactionsMetadata': False,
 			'withReactionsPerspective': False,
@@ -1821,19 +2016,13 @@ class TwitterSearchScraper(_TwitterAPIScraper):
 			'longform_notetweets_rich_text_read_enabled': False,
 			'longform_notetweets_inline_media_enabled': False,
 			'responsive_web_enhance_cards_enabled': False,
-			'responsive_web_twitter_blue_verified_badge_is_enabled': True,
+			'responsive_web_x_blue_verified_badge_is_enabled': True,
 		}
 		params = {'variables': variables, 'features': features}
 		paginationParams = {'variables': paginationVariables, 'features': features}
 
-		for obj in self._iter_api_data(
-			f'https://twitter.com/i/api/graphql/{self._GRAPHQL_ENDPOINTS["SearchTimeline"]}/SearchTimeline',
-			_TwitterAPIType.GRAPHQL,
-			params,
-			paginationParams,
-			cursor = self._cursor,
-			instructionsPath = ['data', 'search_by_raw_query', 'search_timeline', 'timeline', 'instructions']
-		):	yield from self._graphql_timeline_instructions_to_tweets(obj['data']['search_by_raw_query']['search_timeline']['timeline']['instructions'])
+		for obj in self._iter_api_data('https://x.com/i/api/graphql/U3QTLwGF8sZCHDuWIMSAmg/SearchTimeline', _xAPIType.GRAPHQL, params, paginationParams, cursor = self._cursor, instructionsPath = ['data', 'search_by_raw_query', 'search_timeline', 'timeline', 'instructions']):
+			yield from self._graphql_timeline_instructions_to_tweets(obj['data']['search_by_raw_query']['search_timeline']['timeline']['instructions'])
 
 	@classmethod
 	def _cli_setup_parser(cls, subparser):
@@ -1841,16 +2030,16 @@ class TwitterSearchScraper(_TwitterAPIScraper):
 		group = subparser.add_mutually_exclusive_group(required = False)
 		group.add_argument('--top', action = 'store_true', default = False, help = 'Search top tweets instead of live/chronological')
 		group.add_argument('--user', action = 'store_true', default = False, help = 'Search users instead of tweets')
-		subparser.add_argument('--max-empty-pages', dest = 'maxEmptyPages', metavar = 'N', type = int, default = 20, help = 'Stop after N empty pages from Twitter; set to 0 to disable')
-		subparser.add_argument('query', type = snscrape.utils.nonempty_string_arg('query'), help = 'A Twitter search string')
+		subparser.add_argument('--max-empty-pages', dest = 'maxEmptyPages', metavar = 'N', type = int, default = 20, help = 'Stop after N empty pages from x; set to 0 to disable')
+		subparser.add_argument('query', type = snscrape.utils.nonempty_string_arg('query'), help = 'A x search string')
 
 	@classmethod
 	def _cli_from_args(cls, args):
-		return cls._cli_construct(args, args.query, cursor = args.cursor, mode = TwitterSearchScraperMode._cli_from_args(args), maxEmptyPages = args.maxEmptyPages)
+		return cls._cli_construct(args, args.query, cursor = args.cursor, mode = xSearchScraperMode._cli_from_args(args), maxEmptyPages = args.maxEmptyPages)
 
 
-class TwitterUserScraper(TwitterSearchScraper):
-	name = 'twitter-user'
+class xUserScraper(xSearchScraper):
+	name = 'x-user'
 
 	def __init__(self, user, **kwargs):
 		self._isUserId = isinstance(user, int)
@@ -1858,16 +2047,16 @@ class TwitterUserScraper(TwitterSearchScraper):
 			raise ValueError('Invalid username')
 		super().__init__(f'from:{user}', **kwargs)
 		self._user = user
-		self._baseUrl = f'https://twitter.com/{self._user}' if not self._isUserId else f'https://twitter.com/i/user/{self._user}'
+		self._baseUrl = f'https://x.com/{self._user}' if not self._isUserId else f'https://x.com/i/user/{self._user}'
 
 	def _get_entity(self):
 		self._ensure_guest_token()
 		if not self._isUserId:
 			fieldName = 'screen_name'
-			endpoint = 'https://twitter.com/i/api/graphql/pVrmNaXcxPjisIvKtLDMEA/UserByScreenName'
+			endpoint = 'https://x.com/i/api/graphql/pVrmNaXcxPjisIvKtLDMEA/UserByScreenName'
 		else:
 			fieldName = 'userId'
-			endpoint = 'https://twitter.com/i/api/graphql/1YAM811Q8Ry4XyPpJclURQ/UserByRestId'
+			endpoint = 'https://x.com/i/api/graphql/1YAM811Q8Ry4XyPpJclURQ/UserByRestId'
 		variables = {fieldName: str(self._user), 'withSafetyModeUserFields': True}
 		features = {
 			'blue_business_profile_image_shape_enabled': True,
@@ -1878,7 +2067,7 @@ class TwitterUserScraper(TwitterSearchScraper):
 			'responsive_web_graphql_skip_user_profile_image_extensions_enabled': False,
 			'responsive_web_graphql_timeline_navigation_enabled': True,
 		}
-		obj = self._get_api_data(endpoint, _TwitterAPIType.GRAPHQL, params = {'variables': variables, 'features': features}, instructionsPath = ['data', 'user'])
+		obj = self._get_api_data(endpoint, _xAPIType.GRAPHQL, params = {'variables': variables, 'features': features}, instructionsPath = ['data', 'user'])
 		if not obj['data'] or 'result' not in obj['data']['user']:
 			raise snscrape.base.ScraperException('Empty response')
 		if obj['data']['user']['result']['__typename'] == 'UserUnavailable':
@@ -1907,15 +2096,15 @@ class TwitterUserScraper(TwitterSearchScraper):
 			raise ValueError('Invalid username or ID')
 
 		subparser.add_argument('--user-id', dest = 'isUserId', action = 'store_true', default = False, help = 'Use user ID instead of username')
-		subparser.add_argument('user', type = user, help = 'A Twitter username (without @)')
+		subparser.add_argument('user', type = user, help = 'A x username (without @)')
 
 	@classmethod
 	def _cli_from_args(cls, args):
 		return cls._cli_construct(args, user = int(args.user) if args.isUserId else args.user)
 
 
-class TwitterProfileScraper(TwitterUserScraper):
-	name = 'twitter-profile'
+class xProfileScraper(xUserScraper):
+	name = 'x-profile'
 
 	def get_items(self):
 		if not self._isUserId:
@@ -1966,7 +2155,7 @@ class TwitterProfileScraper(TwitterUserScraper):
 
 		gotPinned = False
 		previousPagesTweetIds = set()
-		for obj in self._iter_api_data('https://twitter.com/i/api/graphql/fn9oRltM1N4thkh5CVusPg/UserTweetsAndReplies', _TwitterAPIType.GRAPHQL, params, paginationParams, instructionsPath = ['data', 'user', 'result', 'timeline_v2', 'timeline', 'instructions']):
+		for obj in self._iter_api_data('https://x.com/i/api/graphql/fn9oRltM1N4thkh5CVusPg/UserTweetsAndReplies', _xAPIType.GRAPHQL, params, paginationParams, instructionsPath = ['data', 'user', 'result', 'timeline_v2', 'timeline', 'instructions']):
 			if not obj['data'] or 'result' not in obj['data']['user']:
 				raise snscrape.base.ScraperException('Empty response')
 			if obj['data']['user']['result']['__typename'] == 'UserUnavailable':
@@ -1981,7 +2170,7 @@ class TwitterProfileScraper(TwitterUserScraper):
 			tweets = list(self._graphql_timeline_instructions_to_tweets(instructions, pinned = False))
 			pageTweetIds = frozenset(tweet.id for tweet in tweets)
 			if len(pageTweetIds) > 0 and pageTweetIds in previousPagesTweetIds:
-				_logger.warning("Found duplicate page of tweets, stopping as assumed cycle found in Twitter's pagination")
+				_logger.warning("Found duplicate page of tweets, stopping as assumed cycle found in x's pagination")
 				break
 			previousPagesTweetIds.add(pageTweetIds)
 			# Includes tweets by other users on conversations, don't return those
@@ -1991,8 +2180,8 @@ class TwitterProfileScraper(TwitterUserScraper):
 				yield tweet
 
 
-class TwitterHashtagScraper(TwitterSearchScraper):
-	name = 'twitter-hashtag'
+class xHashtagScraper(xSearchScraper):
+	name = 'x-hashtag'
 
 	def __init__(self, hashtag, **kwargs):
 		super().__init__(f'#{hashtag}', **kwargs)
@@ -2000,15 +2189,15 @@ class TwitterHashtagScraper(TwitterSearchScraper):
 
 	@classmethod
 	def _cli_setup_parser(cls, subparser):
-		subparser.add_argument('hashtag', type = snscrape.utils.nonempty_string_arg('hashtag'), help = 'A Twitter hashtag (without #)')
+		subparser.add_argument('hashtag', type = snscrape.utils.nonempty_string_arg('hashtag'), help = 'A x hashtag (without #)')
 
 	@classmethod
 	def _cli_from_args(cls, args):
 		return cls._cli_construct(args, args.hashtag)
 
 
-class TwitterCashtagScraper(TwitterSearchScraper):
-	name = 'twitter-cashtag'
+class xCashtagScraper(xSearchScraper):
+	name = 'x-cashtag'
 
 	def __init__(self, cashtag, **kwargs):
 		super().__init__(f'${cashtag}', **kwargs)
@@ -2016,14 +2205,14 @@ class TwitterCashtagScraper(TwitterSearchScraper):
 
 	@classmethod
 	def _cli_setup_parser(cls, subparser):
-		subparser.add_argument('cashtag', type = snscrape.utils.nonempty_string_arg('cashtag'), help = 'A Twitter cashtag (without $)')
+		subparser.add_argument('cashtag', type = snscrape.utils.nonempty_string_arg('cashtag'), help = 'A x cashtag (without $)')
 
 	@classmethod
 	def _cli_from_args(cls, args):
 		return cls._cli_construct(args, args.cashtag)
 
 
-class TwitterTweetScraperMode(enum.Enum):
+class xTweetScraperMode(enum.Enum):
 	SINGLE = 'single'
 	SCROLL = 'scroll'
 	RECURSE = 'recurse'
@@ -2037,13 +2226,13 @@ class TwitterTweetScraperMode(enum.Enum):
 		return cls.SINGLE
 
 
-class TwitterTweetScraper(_TwitterAPIScraper):
-	name = 'twitter-tweet'
+class xTweetScraper(_xAPIScraper):
+	name = 'x-tweet'
 
-	def __init__(self, tweetId, *, mode = TwitterTweetScraperMode.SINGLE, **kwargs):
+	def __init__(self, tweetId, *, mode = xTweetScraperMode.SINGLE, **kwargs):
 		self._tweetId = tweetId
 		self._mode = mode
-		super().__init__(f'https://twitter.com/i/web/status/{self._tweetId}', **kwargs)
+		super().__init__(f'https://x.com/i/web/status/{self._tweetId}', **kwargs)
 
 	def get_items(self):
 		paginationVariables = {
@@ -2087,10 +2276,10 @@ class TwitterTweetScraper(_TwitterAPIScraper):
 
 		params = {'variables': variables, 'features': features}
 		paginationParams = {'variables': paginationVariables, 'features': features}
-		url = 'https://twitter.com/i/api/graphql/miKSMGb2R1SewIJv2-ablQ/TweetDetail'
+		url = 'https://x.com/i/api/graphql/miKSMGb2R1SewIJv2-ablQ/TweetDetail'
 		instructionsPath = ['data', 'threaded_conversation_with_injections_v2', 'instructions']
-		if self._mode is TwitterTweetScraperMode.SINGLE:
-			obj = self._get_api_data(url, _TwitterAPIType.GRAPHQL, params = params, instructionsPath = instructionsPath)
+		if self._mode is xTweetScraperMode.SINGLE:
+			obj = self._get_api_data(url, _xAPIType.GRAPHQL, params = params, instructionsPath = instructionsPath)
 			if not obj['data']:
 				return
 			for instruction in obj['data']['threaded_conversation_with_injections_v2']['instructions']:
@@ -2100,16 +2289,16 @@ class TwitterTweetScraper(_TwitterAPIScraper):
 					if entry['entryId'] == f'tweet-{self._tweetId}' and entry['content']['entryType'] == 'TimelineTimelineItem' and entry['content']['itemContent']['itemType'] == 'TimelineTweet':
 						yield self._graphql_timeline_tweet_item_result_to_tweet(entry['content']['itemContent']['tweet_results']['result'], tweetId = self._tweetId)
 						break
-		elif self._mode is TwitterTweetScraperMode.SCROLL:
+		elif self._mode is xTweetScraperMode.SCROLL:
 			hasModeratedReplies = False
-			for obj in self._iter_api_data(url, _TwitterAPIType.GRAPHQL, params, paginationParams, direction = _ScrollDirection.BOTH, instructionsPath = instructionsPath):
+			for obj in self._iter_api_data(url, _xAPIType.GRAPHQL, params, paginationParams, direction = _ScrollDirection.BOTH, instructionsPath = instructionsPath):
 				if not obj['data']:
 					continue
 				yield from self._graphql_timeline_instructions_to_tweets(obj['data']['threaded_conversation_with_injections_v2']['instructions'], includeConversationThreads = True)
 				hasModeratedReplies = hasModeratedReplies or self._has_moderated_replies(obj, self._tweetId)
 			if hasModeratedReplies:
 				yield from self._get_moderated_replies(self._tweetId)
-		elif self._mode is TwitterTweetScraperMode.RECURSE:
+		elif self._mode is xTweetScraperMode.RECURSE:
 			seenTweets = set()
 			queue = collections.deque()
 			queue.append(self._tweetId)
@@ -2120,7 +2309,7 @@ class TwitterTweetScraper(_TwitterAPIScraper):
 				thisParams = copy.deepcopy(thisPagParams)
 				del thisPagParams['variables']['cursor'], thisPagParams['variables']['referrer']
 				hasModeratedReplies = False
-				for obj in self._iter_api_data(url, _TwitterAPIType.GRAPHQL, thisParams, thisPagParams, direction = _ScrollDirection.BOTH, instructionsPath = instructionsPath):
+				for obj in self._iter_api_data(url, _xAPIType.GRAPHQL, thisParams, thisPagParams, direction = _ScrollDirection.BOTH, instructionsPath = instructionsPath):
 					if not obj['data']:
 						continue
 					for tweet in self._graphql_timeline_instructions_to_tweets(obj['data']['threaded_conversation_with_injections_v2']['instructions'], includeConversationThreads = True):
@@ -2178,10 +2367,10 @@ class TwitterTweetScraper(_TwitterAPIScraper):
 
 		params = {'variables': variables, 'features': features}
 		paginationParams = {'variables': paginationVariables, 'features': features}
-		url = 'https://twitter.com/i/api/graphql/pOVQRe-x12WZeawviP7zxw/ModeratedTimeline'
+		url = 'https://x.com/i/api/graphql/pOVQRe-x12WZeawviP7zxw/ModeratedTimeline'
 		instructionsPath = ['data', 'tweet', 'result', 'timeline_response', 'timeline', 'instructions']
 
-		for obj in self._iter_api_data(url, _TwitterAPIType.GRAPHQL, params, paginationParams, direction = _ScrollDirection.BOTH, instructionsPath = instructionsPath):
+		for obj in self._iter_api_data(url, _xAPIType.GRAPHQL, params, paginationParams, direction = _ScrollDirection.BOTH, instructionsPath = instructionsPath):
 			yield from self._graphql_timeline_instructions_to_tweets(obj['data']['tweet']['result']['timeline_response']['timeline']['instructions'], includeConversationThreads = True)
 
 	@classmethod
@@ -2193,11 +2382,11 @@ class TwitterTweetScraper(_TwitterAPIScraper):
 
 	@classmethod
 	def _cli_from_args(cls, args):
-		return cls._cli_construct(args, args.tweetId, mode = TwitterTweetScraperMode._cli_from_args(args))
+		return cls._cli_construct(args, args.tweetId, mode = xTweetScraperMode._cli_from_args(args))
 
 
-class TwitterListPostsScraper(TwitterSearchScraper):
-	name = 'twitter-list-posts'
+class xListPostsScraper(xSearchScraper):
+	name = 'x-list-posts'
 
 	def __init__(self, listName, **kwargs):
 		super().__init__(f'list:{listName}', **kwargs)
@@ -2205,19 +2394,19 @@ class TwitterListPostsScraper(TwitterSearchScraper):
 
 	@classmethod
 	def _cli_setup_parser(cls, subparser):
-		subparser.add_argument('list', type = snscrape.utils.nonempty_string_arg('list'), help = 'A Twitter list ID or a string of the form "username/listname" (replace spaces with dashes)')
+		subparser.add_argument('list', type = snscrape.utils.nonempty_string_arg('list'), help = 'A x list ID or a string of the form "username/listname" (replace spaces with dashes)')
 
 	@classmethod
 	def _cli_from_args(cls, args):
 		return cls._cli_construct(args, args.list)
 
 
-class TwitterCommunityScraper(_TwitterAPIScraper):
-	name = 'twitter-community'
+class xCommunityScraper(_xAPIScraper):
+	name = 'x-community'
 
 	def __init__(self, communityId, **kwargs):
 		self._communityId = communityId
-		super().__init__(f'https://twitter.com/i/communities/{self._communityId}', **kwargs)
+		super().__init__(f'https://x.com/i/communities/{self._communityId}', **kwargs)
 
 	def _get_entity(self):
 		self._ensure_guest_token()
@@ -2235,7 +2424,7 @@ class TwitterCommunityScraper(_TwitterAPIScraper):
 				'verified_phone_label_enabled': False,
 			},
 		}
-		obj = self._get_api_data('https://twitter.com/i/api/graphql/bC3Saf4niY6YuzJWV2oUGg/CommunitiesFetchOneQuery', _TwitterAPIType.GRAPHQL, params = params, instructionsPath = ['data', 'communityResults'])
+		obj = self._get_api_data('https://x.com/i/api/graphql/bC3Saf4niY6YuzJWV2oUGg/CommunitiesFetchOneQuery', _xAPIType.GRAPHQL, params = params, instructionsPath = ['data', 'communityResults'])
 		if not obj['data'] or 'result' not in obj['data']['communityResults']:
 			raise snscrape.base.ScraperException('Empty response')
 		if obj['data']['communityResults']['result']['__typename'] == 'CommunityUnavailable':
@@ -2295,7 +2484,7 @@ class TwitterCommunityScraper(_TwitterAPIScraper):
 		params = {'variables': variables, 'features': features}
 		paginationParams = {'variables': paginationVariables, 'features': features}
 
-		for obj in self._iter_api_data('https://twitter.com/i/api/graphql/9nnDM-yum8Te--T2REfgkg/CommunityTweetsTimeline', _TwitterAPIType.GRAPHQL, params, paginationParams, instructionsPath = ['data', 'communityResults', 'result', 'community_timeline', 'timeline', 'instructions']):
+		for obj in self._iter_api_data('https://x.com/i/api/graphql/9nnDM-yum8Te--T2REfgkg/CommunityTweetsTimeline', _xAPIType.GRAPHQL, params, paginationParams, instructionsPath = ['data', 'communityResults', 'result', 'community_timeline', 'timeline', 'instructions']):
 			if obj['data']['communityResults']['result']['__typename'] == 'CommunityUnavailable':
 				raise snscrape.base.EntityUnavailable('Community unavailable')
 			yield from self._graphql_timeline_instructions_to_tweets(obj['data']['communityResults']['result']['community_timeline']['timeline']['instructions'])
@@ -2309,11 +2498,11 @@ class TwitterCommunityScraper(_TwitterAPIScraper):
 		return cls._cli_construct(args, args.communityId)
 
 
-class TwitterTrendsScraper(_TwitterAPIScraper):
-	name = 'twitter-trends'
+class xTrendsScraper(_xAPIScraper):
+	name = 'x-trends'
 
 	def __init__(self, **kwargs):
-		super().__init__('https://twitter.com/i/trends', **kwargs)
+		super().__init__('https://x.com/i/trends', **kwargs)
 
 	def get_items(self):
 		params = {
@@ -2347,7 +2536,7 @@ class TwitterTrendsScraper(_TwitterAPIScraper):
 			'entity_tokens': 'false',
 			'ext': 'mediaStats,highlightedLabel,hasNftAvatar,voiceInfo,enrichments,superFollowMetadata,unmentionInfo',
 		}
-		obj = self._get_api_data('https://twitter.com/i/api/2/guide.json', _TwitterAPIType.V2, params)
+		obj = self._get_api_data('https://x.com/i/api/2/guide.json', _xAPIType.V2, params)
 		for instruction in obj['timeline']['instructions']:
 			if not 'addEntries' in instruction:
 				continue
@@ -2359,12 +2548,12 @@ class TwitterTrendsScraper(_TwitterAPIScraper):
 					yield Trend(name = trend['name'], metaDescription = trend['trendMetadata'].get('metaDescription'), domainContext = trend['trendMetadata']['domainContext'])
 
 
-class TwitterUsersScraper(_TwitterAPIScraper):
-	name = 'twitter-users'
+class xUsersScraper(_xAPIScraper):
+	name = 'x-users'
 
 	def __init__(self, userIds, **kwargs):
 		self._userIds = userIds
-		super().__init__(f'https://twitter.com/i/user/{self._userIds[0]}', **kwargs)
+		super().__init__(f'https://x.com/i/user/{self._userIds[0]}', **kwargs)
 
 	def get_items(self):
 		variables = {'userIds': [str(x) for x in self._userIds]}
@@ -2374,7 +2563,7 @@ class TwitterUsersScraper(_TwitterAPIScraper):
 			'responsive_web_graphql_skip_user_profile_image_extensions_enabled': False,
 			'responsive_web_graphql_timeline_navigation_enabled': True,
 		}
-		obj = self._get_api_data('https://twitter.com/i/api/graphql/GD4q8bBE2i6cqWw2iT74Gg/UsersByRestIds', _TwitterAPIType.GRAPHQL, params = {'variables': variables, 'features': features}, instructionsPath = ['data', 'users'])
+		obj = self._get_api_data('https://x.com/i/api/graphql/GD4q8bBE2i6cqWw2iT74Gg/UsersByRestIds', _xAPIType.GRAPHQL, params = {'variables': variables, 'features': features}, instructionsPath = ['data', 'users'])
 		for i, u in enumerate(obj['data']['users']):
 			if not u:
 				_logger.warning(f'Skipping empty response object at position {i}')
